@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# v2.0 rafamiga 2017-09-29; 2017-12-03
+# v2.1 rafamiga 2017-09-29; 2017-12-03; 2017-12-06
 
 """
-Very simple HTTP server in python.
+MC Purge
 Install:
 sudo apt-get install python-pip
-sudo pip install python-varnish==0.1.2 # python 2.7
 """
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from cgi import parse_header, parse_multipart, parse_qs
@@ -15,13 +14,14 @@ from urllib import quote,quote_plus,unquote
 import urlparse
 
 # pip install python-varnish==0.2.1
-from varnish import VarnishManager, VarnishHandler
+from varnishbackend import VarnishManager, VarnishHandler
 import SocketServer
 # pip install requests
 import requests
 import sys, re
 
 CONFIG_FILE = "./mc-purge.config.json"
+BAN_LURKER_AGE = 1
 
 class S(BaseHTTPRequestHandler):
     def _set_headers(self):
@@ -70,7 +70,7 @@ class S(BaseHTTPRequestHandler):
     	    if not len(msg):
                 self.wfile.write('Legenda:<br /><ul><li>podaj ścieżkę ze znakiem &quot;/&quot; na początku.</li>')
                 self.wfile.write('<li>przykład: podanie <span class="bred">/cyfryzacja/</span> wykasuje z cache wszystkie adresy rozpoczynające się od /cyfryzacja/</li>')
-                self.wfile.write('<li>przykład: <span class="bred">/.*\.css.*</span> wykasuje <u>wszystkie</u> pliki arkuszy stylu (regexp)</li>')
+                self.wfile.write('<li>przykład: <span class="bred">/.*\\.css.*</span> wykasuje <u>wszystkie</u> pliki arkuszy stylu (regexp; zapis &quot;\\.&quot; oznacza kropkę)</li>')
                 self.wfile.write('<li>UWAGA! Jeżeli backend jest w stanie <span class="bred">SICK</span> i nastąpi usunięcie treści zostanie ona usunięta bezwarunkowo, a żądania do niej się odnoszące zakończą się błędem 503.</li>');
                 self.wfile.write('</ul>')
 
@@ -95,6 +95,11 @@ class S(BaseHTTPRequestHandler):
 
                     ok = vm.run('status',secret=vmsecret)
                     vstatus += '<br />%s' % (''.join(map(str, ok[0][0])))
+
+                    # ustawianie czasu reakcji na ban
+                    ok = vm.run('param.set','ban_lurker_age',BAN_LURKER_AGE,secret=vmsecret)
+#                    print "param.set=%s" % (str(ok[0][0]))
+#                    vstatus += '<br />%s' % (''.join(map(str, ok[0][0])))
 
                     ok = vm.run('backend.list',secret=vmsecret)
                     bstatus = ''.join(map(str, ok[0][0]))
@@ -127,7 +132,7 @@ class S(BaseHTTPRequestHandler):
                         vstatus += '(liczba ukrytych zleceń wykonanych=%d)' % skipline
 
                 except Exception as e:
-                    print "!!! not ok e=%s" % e
+                    print "!!! vm.run Exception=%s" % e
                     vstatus += '<br /><span class="bred">NASTĄPIŁ BŁAD "%s"</span>' % e
                 
                 self.wfile.write(vstatus + "</blockquote>");
@@ -240,8 +245,8 @@ class S(BaseHTTPRequestHandler):
                 msg = "BŁĄD: Ścieżka jest za krótka<br />"
                 break
 
-            if purgeurl[0] != "/":
-                msg = "BŁĄD: Ścieżka musi zaczynać się od znaku &quot;/&quot;<br />"
+            if purgeurl[0] != '/': # and purgeurl[0] != '\\':
+                msg = "BŁĄD: Ścieżka musi zaczynać się od znaku &quot;/&quot;<br />" # lub &quot;\&quot;<br />"
                 break
 
             for a in cfg[sysid]["endpoint"]:
