@@ -71,6 +71,7 @@ class S(BaseHTTPRequestHandler):
                 self.wfile.write('Legenda:<br /><ul><li>podaj ścieżkę ze znakiem &quot;/&quot; na początku.</li>')
                 self.wfile.write('<li>przykład: podanie <span class="bred">/cyfryzacja/</span> wykasuje z cache wszystkie adresy rozpoczynające się od /cyfryzacja/</li>')
                 self.wfile.write('<li>przykład: <span class="bred">/.*\.css.*</span> wykasuje <u>wszystkie</u> pliki arkuszy stylu (regexp)</li>')
+                self.wfile.write('<li>UWAGA! Jeżeli backend jest w stanie <span class="bred">SICK</span> i nastąpi usunięcie treści zostanie ona usunięta bezwarunkowo, a żądania do niej się odnoszące zakończą się błędem 503.</li>');
                 self.wfile.write('</ul>')
 
             self.wfile.write('<hr />Status:');
@@ -83,14 +84,14 @@ class S(BaseHTTPRequestHandler):
 
                 vstatus += 'Cache <b>%s</b><blockquote>' % (vmadm)
 
-                print "getid=%d vmadm=%s vmsecret=%s" % (getid, vmadm, vmsecret)
+#                print "getid=%d vmadm=%s vmsecret=%s" % (getid, vmadm, vmsecret)
 
                 vm = VarnishManager((vmadm,))
 
                 try:
                     ok = vm.run('ping',secret=vmsecret)
                     vstatus += '[PING OK]'
-                    print "ret=%s" % '<br />'.join(map(str, ok[0][0]))
+#                    print "ret=%s" % '<br />'.join(map(str, ok[0][0]))
 
                     ok = vm.run('status',secret=vmsecret)
                     vstatus += '<br />%s' % (''.join(map(str, ok[0][0])))
@@ -126,7 +127,7 @@ class S(BaseHTTPRequestHandler):
                         vstatus += '(liczba ukrytych zleceń wykonanych=%d)' % skipline
 
                 except Exception as e:
-                    print "not ok e=%s" % e
+                    print "!!! not ok e=%s" % e
                     vstatus += '<br /><span class="bred">NASTĄPIŁ BŁAD "%s"</span>' % e
                 
                 self.wfile.write(vstatus + "</blockquote>");
@@ -142,7 +143,7 @@ class S(BaseHTTPRequestHandler):
             getid = int(getid[0])
         except:
             getid = 0
-        print "getid=%s" % getid
+#        print "getid=%s" % getid
     
     def do_GET(self):
         global msg
@@ -222,7 +223,7 @@ class S(BaseHTTPRequestHandler):
                         msg += '<br />%s' % (''.join(map(str,ok[0][0]))) + '<br />'
                         
                     except Exception as e:
-                        print "not ok e=%s" % e
+                        print "!!! not ok e=%s" % e
                         msg += '<br /><span class="bred">NASTĄPIŁ BŁAD "%s"</span>' % e
                     
         # nic więcej nie robimy, uniwersalny koniec metod innych niż purgeurl
@@ -304,7 +305,7 @@ def run(server_class=HTTPServer, handler_class=S, port=3000):
 
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print '*** Start httpd...'
+    print '*** Start httpd ' + str(server_address) + ' ...'
     httpd.serve_forever()
 
 if __name__ == "__main__":
